@@ -54,7 +54,7 @@ def main():
                 if square_selected == (row, col):  # if the player selects the same square twice
                     square_selected = ()  # deselect
                     player_clicks = []  # clear player_clicks
-                else:
+                else:  # if the player clicks on a piece or empty square
                     square_selected = (row, col)
                     player_clicks.append(square_selected)  # appends for both 1st or 2nd click
                 if len(player_clicks) == 2:  # after second click
@@ -63,8 +63,10 @@ def main():
                         gs.make_move(move)
                         move_made = True
                         print(move.get_chess_notation())
-                    square_selected = ()  # reset square_selected
-                    player_clicks = []  # reset player_clicks
+                        square_selected = ()  # reset square_selected
+                        player_clicks = []  # reset player_clicks
+                    else:  # if the player did not make a valid move (e.g. clicked on another ally piece)
+                        player_clicks = [square_selected]  # avoid bug where you double click to select new piece
             # key handlers
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:  # undo move when 'z' is pressed
