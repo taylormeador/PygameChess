@@ -3,7 +3,7 @@ Responsible for handling user input and current game state object
 """
 
 import pygame as p
-from Chess import engine
+import engine
 
 p.init()
 WIDTH = HEIGHT = 512
@@ -21,7 +21,7 @@ def load_images():
     # TODO implement alternate piece options
     pieces = ['wP', 'wN', 'wB', 'wR', 'wQ', 'wK', 'bP', 'bN', 'bB', 'bR', 'bQ', 'bK']
     for piece in pieces:
-        IMAGES[piece] = p.transform.scale(p.image.load("Chess/images/" + piece + ".png"), (SQ_SIZE, SQ_SIZE))
+        IMAGES[piece] = p.transform.scale(p.image.load("images/" + piece + ".png"), (SQ_SIZE, SQ_SIZE))
     # Note: we can access an image by saying 'IMAGES['wP']'
 
 
@@ -59,13 +59,14 @@ def main():
                     player_clicks.append(square_selected)  # appends for both 1st or 2nd click
                 if len(player_clicks) == 2:  # after second click
                     move = engine.Move(player_clicks[0], player_clicks[1], gs.board)
-                    if move in valid_moves:  # execute the move only if it is valid
-                        gs.make_move(move)
-                        move_made = True
-                        print(move.get_chess_notation())
-                        square_selected = ()  # reset square_selected
-                        player_clicks = []  # reset player_clicks
-                    else:  # if the player did not make a valid move (e.g. clicked on another ally piece)
+                    for i in range(len(valid_moves)):
+                        if move == valid_moves[i]:  # execute the move only if it is valid
+                            gs.make_move(valid_moves[i])
+                            move_made = True
+                            print(move.get_chess_notation())
+                            square_selected = ()  # reset square_selected
+                            player_clicks = []  # reset player_clicks
+                    if not move_made:  # if the player did not make a valid move (e.g. clicked on another ally piece)
                         player_clicks = [square_selected]  # avoid bug where you double click to select new piece
             # key handlers
             elif e.type == p.KEYDOWN:
