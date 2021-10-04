@@ -8,3 +8,6 @@ The  game is partially playable in its current state. All the pieces can move an
 
 -9/22/21
 Added pawn promotion (auto-queen only) and en passant captures. I hope to add logic for castling next
+
+-10/4/21
+Added castling
