@@ -11,3 +11,6 @@ Added pawn promotion (auto-queen only) and en passant captures. I hope to add lo
 
 -10/4/21
 Added castling
+
+-10/6/21
+Added an AI that plays random moves. Letting it play itself also revealed several bugs that were fixed

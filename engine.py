@@ -1,4 +1,5 @@
 import copy
+import main
 
 """
 Responsible for storing all the information about the current state of the chess game.
@@ -106,6 +107,7 @@ class GameState:
             self.castle_rights_log.pop()  # delete the updated castle rights since we are undoing that move
             self.current_castling_rights = copy.deepcopy(self.castle_rights_log[-1])  # set the castle rights to the previous state
 
+            # undo castling
             if move.is_castle_move:
                 if move.end_col - move.start_col == 2:  # kingside castle
                     self.board[move.end_row][move.end_col + 1] = self.board[move.end_row][move.end_col - 1]
@@ -113,6 +115,18 @@ class GameState:
                 else:  # queenside castle
                     self.board[move.end_row][move.end_col - 2] = self.board[move.end_row][move.end_col + 1]
                     self.board[move.end_row][move.end_col + 1] = "--"
+
+            # undo checkmate
+            # TODO fix bug where player cannot make any moves after undoing checkmate
+            if self.checkmate:
+                main.game_over = False
+                self.checkmate = False
+                self.in_check = False
+
+            # undo stalemate
+            if self.stalemate:
+                main.game_over = False
+                self.stalemate = False
 
     """
     Update the castling rights given the move
@@ -175,7 +189,7 @@ class GameState:
                 check_col = check[1]
                 piece_checking = self.board[check_row][check_col]
                 valid_squares = []  # list of valid squares pieces can move to
-                # if the piece is a knight, you must capture or knight or move king
+                # if the piece is a knight, you must capture the knight or move king
                 if piece_checking[1] == "N":
                     valid_squares = [(check_row, check_col)]
                 else:
@@ -199,6 +213,12 @@ class GameState:
             self.get_castle_moves(self.black_king_location[0], self.black_king_location[1], moves, "b")
 
         self.current_castling_rights = temp_castle_rights
+
+        if len(moves) == 0:
+            if self.in_check:
+                self.checkmate = True
+            else:
+                self.stalemate = True
         return moves
 
     """
@@ -278,12 +298,12 @@ class GameState:
                         # 5. Piece is a king and is one square away in any direction
                         if (0 <= j <= 3 and piece_type == "R") or \
                            (4 <= j <= 7 and piece_type == "B") or \
-                           (i == 1 and piece_type == "P" and ((enemy_color == "w" and 6 <= j <= 7) or \
-                                                        (enemy_color == "b" and 4 <= j <= 5))) or \
+                           (i == 1 and piece_type == "P" and ((enemy_color == "w" and 6 <= j <= 7) or
+                                                              (enemy_color == "b" and 4 <= j <= 5))) or \
                            (piece_type == "Q") or (i == 1 and piece_type == "K"):
                             if possible_pin == ():  # there is no ally piece blocking check
                                 in_check = True
-                                checks.append((end_row, end_row, d[0], d[1]))
+                                checks.append((end_row, end_col, d[0], d[1]))
                                 break
                             else:  # piece blocking check
                                 pins.append(possible_pin)
@@ -368,9 +388,9 @@ class GameState:
         piece_pinned = False
         pin_direction = ()
         for i in range(len(self.pins) - 1, -1, -1):
-            if self.pins[i][2] == row and self.pins[i][3] == col:
+            if self.pins[i][0] == row and self.pins[i][1] == col:
                 piece_pinned = True
-                pin_direction = (self.pins[i][0], self.pins[i][1])
+                pin_direction = (self.pins[i][2], self.pins[i][3])
                 if self.board[row][col][1] != "Q":  # we don't want to remove moves from the list for queens
                     self.pins.remove(self.pins[i])
                 break
@@ -405,7 +425,7 @@ class GameState:
         for i in range(len(self.pins) - 1, -1, -1):
             if self.pins[i][0] == row and self.pins[i][1] == col:
                 piece_pinned = True
-                pin_direction = (self.pins[i][3], self.pins[i][4])
+                pin_direction = (self.pins[i][2], self.pins[i][3])
 
         opponent_color = "b" if self.white_to_move else "w"
         bishop_moves = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
@@ -504,7 +524,7 @@ class GameState:
 
     def get_queenside_castle_moves(self, row, col, moves, ally_color):
         if self.board[row][col - 1] == "--" and self.board[row][col - 2] == "--" and self.board[row][col - 3] == "--":
-            if not self.square_under_attack(row, col - 1) and not self.aquare_under_attack(row, col - 2) and not self.square_under_attack(row, col - 3):
+            if not self.square_under_attack(row, col - 1) and not self.square_under_attack(row, col - 2) and not self.square_under_attack(row, col - 3):
                 moves.append(Move((row, col), (row, col - 2), self.board, is_castle_move=True))
 
 
