@@ -103,6 +103,7 @@ class GameState:
             # undo a 2 square advance
             if move.piece_moved[1] == "P" and abs(move.start_row - move.end_row) == 2:
                 self.en_passant_possible = ()
+
             # undo castling rights
             self.castle_rights_log.pop()  # delete the updated castle rights since we are undoing that move
             self.current_castling_rights = copy.deepcopy(self.castle_rights_log[-1])  # set the castle rights to the previous state

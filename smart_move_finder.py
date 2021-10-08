@@ -50,7 +50,6 @@ def find_best_move(gs, valid_moves):
 Helper method to make the first recursive call of minmax
 """
 
-
 def find_best_move_min_max(gs, valid_moves):
     global next_move
     next_move = None

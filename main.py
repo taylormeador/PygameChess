@@ -45,7 +45,7 @@ def main():
     player_clicks = []  # list that keeps track of two consecutive player clicks (two tuples: [(5, 4), (6, 8)])
     game_over = False
     player_one = True  # if a human is playing white, this will be true
-    player_two = False  # same as above but for black
+    player_two = True  # same as above but for black
     running = True
     while running:
         human_turn = (gs.white_to_move and player_one) or (not gs.white_to_move and player_two)

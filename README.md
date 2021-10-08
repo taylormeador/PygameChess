@@ -16,4 +16,4 @@ Added castling
 Added an AI that plays random moves. Letting it play itself also revealed several bugs that were fixed
 
 -10/7/21
-Improved AI to use a recursive MinMax algorithm to find better moves
+Improved AI to use a recursive MinMax algorithm to find better moves. Added a feature that highlights the square of the piece that last moved
