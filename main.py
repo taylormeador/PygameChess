@@ -44,7 +44,7 @@ def main():
     square_selected = ()  # Tuple that keeps track of the last row/column the player selected (tuple: (row, col))
     player_clicks = []  # list that keeps track of two consecutive player clicks (two tuples: [(5, 4), (6, 8)])
     game_over = False
-    player_one = False  # if a human is playing white, this will be true
+    player_one = True  # if a human is playing white, this will be true
     player_two = False  # same as above but for black
     running = True
     while running:
@@ -82,6 +82,7 @@ def main():
                     gs.undo_move()
                     move_made = True
                     animate = False
+                    game_over = False
                 if e.key == p.K_r:  # restart the game when you press "r"
                     # TODO add dialog box to confirm player wants to restart the game
                     gs = engine.GameState()
@@ -90,10 +91,13 @@ def main():
                     player_clicks = []
                     move_made = False
                     animate = False
+                    game_over = False
 
         # AI move finder logic
         if not game_over and not human_turn:
-            AI_move = smart_move_finder.find_random_move(valid_moves)
+            AI_move = smart_move_finder.find_best_move_min_max(gs, valid_moves)
+            if AI_move is None:
+                AI_move = smart_move_finder.find_random_move(valid_moves)
             gs.make_move(AI_move)
             move_made = True
             animate = True
@@ -140,6 +144,14 @@ def highlight_squares(screen, gs, valid_moves, square_selected):
             for move in valid_moves:
                 if move.start_row == row and move.start_col == col:
                     screen.blit(s, (SQ_SIZE * move.end_col, SQ_SIZE * move.end_row))
+
+    # highlight the square of the piece that last moved
+    if gs.move_log:  # make sure the move log is not empty
+        last_move = gs.move_log[-1]  # get the last move
+        s = p.Surface((SQ_SIZE, SQ_SIZE))
+        s.fill(p.Color('yellow'))
+        s.set_alpha(100)
+        screen.blit(s, (SQ_SIZE * last_move.end_col, SQ_SIZE * last_move.end_row))
 
 
 """

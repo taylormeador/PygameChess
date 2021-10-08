@@ -116,17 +116,14 @@ class GameState:
                     self.board[move.end_row][move.end_col - 2] = self.board[move.end_row][move.end_col + 1]
                     self.board[move.end_row][move.end_col + 1] = "--"
 
-            # undo checkmate
+            # undo checkmate, stalemate, game over since undoing a move reverses any of these
             # TODO fix bug where player cannot make any moves after undoing checkmate
-            if self.checkmate:
-                main.game_over = False
-                self.checkmate = False
-                self.in_check = False
 
-            # undo stalemate
-            if self.stalemate:
-                main.game_over = False
-                self.stalemate = False
+            self.checkmate = False
+            self.stalemate = False
+
+
+
 
     """
     Update the castling rights given the move

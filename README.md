@@ -14,3 +14,6 @@ Added castling
 
 -10/6/21
 Added an AI that plays random moves. Letting it play itself also revealed several bugs that were fixed
+
+-10/7/21
+Improved AI to use a recursive MinMax algorithm to find better moves
