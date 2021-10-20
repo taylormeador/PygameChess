@@ -1,9 +1,10 @@
 import random
+import datetime
 
 piece_values = {"Q": 10, "R": 5, "B": 3, "N": 3, "P": 1, "K": 0}
 CHECKMATE = 1000
 STALEMATE = 0
-DEPTH = 3
+DEPTH = 4
 
 
 """
@@ -16,44 +17,20 @@ def find_random_move(valid_moves):
 
 
 """
-Find the best move given the material on the board. Non recursive minmax
+Helper method to make the first recursive call of minmax
 """
 
 
 def find_best_move(gs, valid_moves):
-    opponent_min_max_score = CHECKMATE
-    best_player_move = None
-    turn_multiplier = 1 if gs.white_to_move else -1
-    for player_move in valid_moves:
-        gs.make_move(player_move)
-        opponent_moves = gs.get_valid_moves()
-        opponent_max_score = -CHECKMATE
-        for opponent_move in opponent_moves:  # find the best move for the opponent
-            gs.make_move(opponent_move)
-            if gs.checkmate:
-                score = CHECKMATE
-            elif gs.stalemate:
-                score = STALEMATE
-            else:
-                score = -turn_multiplier * score_material(gs.board)
-            if score > opponent_max_score:
-                opponent_max_score = score
-            gs.undo_move()
-        if opponent_max_score < opponent_min_max_score:  # find the player best move based on opponent's best response
-            opponent_min_max_score = opponent_max_score
-            best_player_move = player_move
-        gs.undo_move()
-    return best_player_move
-
-
-"""
-Helper method to make the first recursive call of minmax
-"""
-
-def find_best_move_min_max(gs, valid_moves):
-    global next_move
+    global next_move, counter
     next_move = None
-    find_move_min_max(gs, valid_moves, DEPTH, gs.white_to_move)
+    random.shuffle(valid_moves)
+    counter = 0
+    begin_time = datetime.datetime.now()
+    find_move_nega_max_alpha_beta(gs, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if gs.white_to_move else -1)
+    execution_time = datetime.datetime.now() - begin_time
+    print("# of moves evaluated: ",  counter)
+    print("Time elapsed: ", execution_time)
     return next_move
 
 
@@ -92,6 +69,50 @@ def find_move_min_max(gs, valid_moves, depth, white_to_move):
                     next_move = move
             gs.undo_move()
         return min_score
+
+
+def find_move_nega_max(gs, valid_moves, depth, turn_multiplier):
+    global next_move
+    if depth == 0:
+        return turn_multiplier * score_board(gs)
+
+    max_score = -CHECKMATE
+    for move in valid_moves:
+        gs.make_move(move)
+        next_moves = gs.get_valid_moves()
+        score = -1 * find_move_nega_max(gs, next_moves, depth - 1, -turn_multiplier)
+        if score > max_score:
+            max_score = score
+            if depth == DEPTH:
+                next_move = move
+        gs.undo_move()
+    return max_score
+
+
+def find_move_nega_max_alpha_beta(gs, valid_moves, depth, alpha, beta, turn_multiplier):
+    global next_move, counter
+    counter += 1
+    if depth == 0:
+        return turn_multiplier * score_board(gs)
+
+    # TODO move ordering - implement method here that orders moves best to worst
+
+    max_score = -CHECKMATE
+    for move in valid_moves:
+        gs.make_move(move)
+        next_moves = gs.get_valid_moves()
+        score = -find_move_nega_max_alpha_beta(gs, next_moves, depth - 1, -beta, -alpha, -turn_multiplier)
+        if score > max_score:
+            max_score = score
+            if depth == DEPTH:
+                next_move = move
+        gs.undo_move()
+        # pruning
+        if max_score > alpha:
+            alpha = max_score
+        if alpha >= beta:
+            break
+    return max_score
 
 
 """

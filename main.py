@@ -13,6 +13,9 @@ SQ_SIZE = HEIGHT // DIMENSION
 MAX_FPS = 15
 IMAGES = {}
 
+# TODO pre-moves, queenside castle bug, player select/config, material count, opening book,
+#  square labels, draw rules, time control
+
 """
 Initialize a global dictionary of images. This will only be called once in the main function
 """
@@ -45,7 +48,7 @@ def main():
     player_clicks = []  # list that keeps track of two consecutive player clicks (two tuples: [(5, 4), (6, 8)])
     game_over = False
     player_one = True  # if a human is playing white, this will be true
-    player_two = True  # same as above but for black
+    player_two = False  # same as above but for black
     running = True
     while running:
         human_turn = (gs.white_to_move and player_one) or (not gs.white_to_move and player_two)
@@ -95,10 +98,11 @@ def main():
 
         # AI move finder logic
         if not game_over and not human_turn:
-            AI_move = smart_move_finder.find_best_move_min_max(gs, valid_moves)
+            AI_move = smart_move_finder.find_best_move(gs, valid_moves)
             if AI_move is None:
                 AI_move = smart_move_finder.find_random_move(valid_moves)
             gs.make_move(AI_move)
+            print(AI_move.get_chess_notation())
             move_made = True
             animate = True
 

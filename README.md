@@ -17,3 +17,6 @@ Added an AI that plays random moves. Letting it play itself also revealed severa
 
 -10/7/21
 Improved AI to use a recursive MinMax algorithm to find better moves. Added a feature that highlights the square of the piece that last moved
+
+-10/19/21
+More AI improvements - implemented a recursive Nega Max algorithm with Alpha beta pruning

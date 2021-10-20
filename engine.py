@@ -124,8 +124,6 @@ class GameState:
             self.stalemate = False
 
 
-
-
     """
     Update the castling rights given the move
     """
@@ -544,7 +542,7 @@ class Move:
                      "e": 4, "f": 5, "g": 6, "h": 7}
     cols_to_files = {v: k for k, v in files_to_cols.items()}
 
-    def __init__(self, start_square, end_square, board, en_passant_move=False, is_castle_move=False):
+    def __init__(self, start_square, end_square, board, en_passant_move=False, is_castle_move=False, is_check=False, is_checkmate=False):
         self.start_row = start_square[0]
         self.start_col = start_square[1]
         self.end_row = end_square[0]
