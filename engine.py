@@ -36,6 +36,7 @@ class GameState:
         self.checkmate = False
         self.stalemate = False
         self.en_passant_possible = ()  # coordinates of end square where en passant capture is possible
+        self.en_passant_possible_log = [self.en_passant_possible]
         self.current_castling_rights = CastleRights(True, True, True, True)
         self.castle_rights_log = [CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
                                                self.current_castling_rights.wqs, self.current_castling_rights.bqs)]
@@ -68,6 +69,9 @@ class GameState:
         else:
             self.en_passant_possible = ()
 
+        # update en passant log
+        self.en_passant_possible_log.append(self.en_passant_possible)
+
         # castle move
         if move.is_castle_move:
             if move.end_col - move.start_col == 2:  # kingside castle
@@ -95,14 +99,15 @@ class GameState:
             elif move.piece_moved == "bK":
                 self.black_king_location = (move.start_row, move.start_col)
             self.white_to_move = not self.white_to_move
+
             # undo en passant
             if move.en_passant_move:
                 self.board[move.end_row][move.end_col] = "--"  # leave landing space blank
                 self.board[move.start_row][move.end_col] = move.piece_captured
-                self.en_passant_possible = (move.end_row, move.end_col)
-            # undo a 2 square advance
-            if move.piece_moved[1] == "P" and abs(move.start_row - move.end_row) == 2:
-                self.en_passant_possible = ()
+
+            # update en passant
+            self.en_passant_possible_log.pop()
+            self.en_passant_possible = self.en_passant_possible_log[-1]
 
             # undo castling rights
             self.castle_rights_log.pop()  # delete the updated castle rights since we are undoing that move
@@ -117,9 +122,7 @@ class GameState:
                     self.board[move.end_row][move.end_col - 2] = self.board[move.end_row][move.end_col + 1]
                     self.board[move.end_row][move.end_col + 1] = "--"
 
-            # undo checkmate, stalemate, game over since undoing a move reverses any of these
-            # TODO fix bug where player cannot make any moves after undoing checkmate
-
+            # undo checkmate, stalemate since undoing a move reverses any of these
             self.checkmate = False
             self.stalemate = False
 
@@ -555,9 +558,12 @@ class Move:
         self.en_passant_move = en_passant_move
         if self.en_passant_move:
             self.piece_captured = "wP" if self.piece_moved == "bP" else "bP"
+        self.is_capture = self.piece_captured != "--"
         # castle
         self.is_castle_move = is_castle_move
         self.move_ID = self.start_row * 1000 + self.start_col * 100 + self.end_row * 10 + self.end_col
+        self.is_check = False
+        self.is_checkmate = False
 
     """
     Overriding the equals method
@@ -568,8 +574,8 @@ class Move:
         return False
 
     def get_chess_notation(self):
-        # TODO make this real Chess notation - add logic for check/checkmate
-        # TODO add logic for multiple possible pieces moving to destination
+        # TODO check/checkmate
+        # TODO multiple possible pieces moving to destination
         if self.piece_moved[-1] != "P":  # if the piece moved is not a pawn
             if self.piece_captured != "--":  # if we captured a piece
                 return self.piece_moved[-1] + "x" + self.get_rank_file(self.end_row, self.end_col)  # e.g. Qxf5
@@ -582,3 +588,42 @@ class Move:
 
     def get_rank_file(self, row, col):
         return self.cols_to_files[col] + self.rows_to_ranks[row]
+
+    # overriding the str() function
+    def __str__(self):
+        # castle move
+        if self.is_castle_move:
+            return "O-O" if self.end_col == 6 else "O-O-O"
+
+        end_square = self.get_rank_file(self.end_row, self.end_col)
+        # pawn moves
+        if self.piece_moved[1] == "P":
+            if self.is_capture:
+                if self.is_checkmate:
+                    return self.cols_to_files[self.start_col] + "x" + end_square + "#"
+                elif self.is_check:
+                    return self.cols_to_files[self.start_col] + "x" + end_square + "!"
+                else:
+                    return self.cols_to_files[self.start_col] + "x" + end_square
+            else:
+                if self.is_checkmate:
+                    return end_square + "#"
+                elif self.is_check:
+                    return end_square + "!"
+                else:
+                    return end_square
+
+
+        # piece moves
+        move_string = self.piece_moved[1]
+        if self.is_capture:
+            move_string += "x"
+
+        if self.is_checkmate:
+            return move_string + end_square + "#"
+
+        elif self.is_check:
+            return move_string + end_square + "#"
+
+        else:
+            return move_string + end_square

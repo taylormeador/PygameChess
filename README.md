@@ -20,3 +20,6 @@ Improved AI to use a recursive MinMax algorithm to find better moves. Added a fe
 
 -10/19/21
 More AI improvements - implemented a recursive Nega Max algorithm with Alpha beta pruning
+
+-10/20/21
+Bug fixes, move log display

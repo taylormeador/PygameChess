@@ -4,7 +4,7 @@ import datetime
 piece_values = {"Q": 10, "R": 5, "B": 3, "N": 3, "P": 1, "K": 0}
 CHECKMATE = 1000
 STALEMATE = 0
-DEPTH = 4
+DEPTH = 3
 
 
 """
@@ -29,6 +29,7 @@ def find_best_move(gs, valid_moves):
     begin_time = datetime.datetime.now()
     find_move_nega_max_alpha_beta(gs, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if gs.white_to_move else -1)
     execution_time = datetime.datetime.now() - begin_time
+    print()
     print("# of moves evaluated: ",  counter)
     print("Time elapsed: ", execution_time)
     return next_move
