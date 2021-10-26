@@ -21,10 +21,10 @@ Helper method to make the first recursive call of minmax
 """
 
 
-def find_best_move(gs, valid_moves):
+def find_best_move(gs, valid_moves, return_queue):
     global next_move, counter
     next_move = None
-    random.shuffle(valid_moves)
+    random.shuffle(valid_moves)  # to allow for variation in games with AI
     counter = 0
     begin_time = datetime.datetime.now()
     find_move_nega_max_alpha_beta(gs, valid_moves, DEPTH, -CHECKMATE, CHECKMATE, 1 if gs.white_to_move else -1)
@@ -32,7 +32,7 @@ def find_best_move(gs, valid_moves):
     print()
     print("# of moves evaluated: ",  counter)
     print("Time elapsed: ", execution_time)
-    return next_move
+    return_queue.put(next_move)
 
 
 """

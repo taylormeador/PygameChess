@@ -23,3 +23,6 @@ More AI improvements - implemented a recursive Nega Max algorithm with Alpha bet
 
 -10/20/21
 Bug fixes, move log display
+
+-10/26/21
+en-passant bug fix, multiprocessing

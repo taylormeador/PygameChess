@@ -5,6 +5,7 @@ Responsible for handling user input and current game state object
 import pygame as p
 import engine
 import smart_move_finder
+from multiprocessing import Process, Queue
 
 p.init()
 BOARD_WIDTH = BOARD_HEIGHT = 512
@@ -15,7 +16,7 @@ SQ_SIZE = BOARD_HEIGHT // DIMENSION
 MAX_FPS = 15
 IMAGES = {}
 
-# TODO pre-moves, player select/config, material count, opening book,
+# TODO pre-moves, player select/config, material count display, opening book,
 #  square labels, draw rules, time control, drag and drop
 
 """
@@ -50,8 +51,12 @@ def main():
     square_selected = ()  # Tuple that keeps track of the last row/column the player selected (tuple: (row, col))
     player_clicks = []  # list that keeps track of two consecutive player clicks (two tuples: [(5, 4), (6, 8)])
     game_over = False
+    premove = None
     player_one = True  # if a human is playing white, this will be true
     player_two = False  # same as above but for black
+    AI_thinking = False
+    move_finder_process = None
+    move_undone = False
     running = True
     while running:
         human_turn = (gs.white_to_move and player_one) or (not gs.white_to_move and player_two)
@@ -60,7 +65,7 @@ def main():
                 running = False
             # mouse handler
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not game_over and human_turn:
+                if not game_over:
                     location = p.mouse.get_pos()  # (x, y) of mouse click position
                     col = location[0] // SQ_SIZE  # get column number from location
                     row = location[1] // SQ_SIZE  # get row number from location
@@ -70,17 +75,21 @@ def main():
                     else:  # if the player clicks on a piece or empty square
                         square_selected = (row, col)
                         player_clicks.append(square_selected)  # appends for both 1st or 2nd click
-                    if len(player_clicks) == 2:  # after second click
-                        move = engine.Move(player_clicks[0], player_clicks[1], gs.board)
-                        for i in range(len(valid_moves)):
-                            if move == valid_moves[i]:  # execute the move only if it is valid
-                                gs.make_move(valid_moves[i])
-                                move_made = True
-                                animate = True
-                                square_selected = ()  # reset square_selected
-                                player_clicks = []  # reset player_clicks
-                        if not move_made:  # if the player did not make a valid move (e.g. clicked on another ally piece)
-                            player_clicks = [square_selected]  # avoid bug where you double click to select new piece
+                    if len(player_clicks) == 2 or premove:  # after second click
+                        if human_turn:  # if it's a human turn, play the move
+                            move = engine.Move(player_clicks[0], player_clicks[1], gs.board)
+                            for i in range(len(valid_moves)):
+                                if move == valid_moves[i]:  # execute the move only if it is valid
+                                    gs.make_move(valid_moves[i])
+                                    premove = None
+                                    move_made = True
+                                    animate = True
+                                    square_selected = ()  # reset square_selected
+                                    player_clicks = []  # reset player_clicks
+                            if not move_made:  # if the player did not make a valid move (e.g. clicked on another ally piece)
+                                player_clicks = [square_selected]  # avoid bug where you double click to select new piece
+                        else:  # if it's not a human turn, save the move as a premove
+                            premove = engine.Move(player_clicks[0], player_clicks[1], gs.board)
             # key handlers
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:  # undo move when 'z' is pressed
@@ -88,6 +97,10 @@ def main():
                     move_made = True
                     animate = False
                     game_over = False
+                    if AI_thinking:
+                        move_finder_process.terminate()
+                        AI_thinking = False
+                    move_undone = True
                 if e.key == p.K_r:  # restart the game when you press "r"
                     # TODO add dialog box to confirm player wants to restart the game
                     gs = engine.GameState()
@@ -97,15 +110,29 @@ def main():
                     move_made = False
                     animate = False
                     game_over = False
+                    if AI_thinking:
+                        move_finder_process.terminate()
+                        AI_thinking = False
+                    move_undone = True
 
         # AI move finder logic
-        if not game_over and not human_turn:
-            AI_move = smart_move_finder.find_best_move(gs, valid_moves)
-            if AI_move is None:
-                AI_move = smart_move_finder.find_random_move(valid_moves)
-            gs.make_move(AI_move)
-            move_made = True
-            animate = True
+        if not game_over and not human_turn and not move_undone:
+            if not AI_thinking:
+                AI_thinking = True
+                print("Thinking...")
+                return_queue = Queue()  # used to pass data between threads
+                move_finder_process = Process(target=smart_move_finder.find_best_move, args=(gs, valid_moves, return_queue))
+                move_finder_process.start()  # calls find_best_move in its own thread
+
+            if not move_finder_process.is_alive():
+                print("Done thinking")
+                AI_move = return_queue.get()
+                if AI_move is None:
+                    AI_move = smart_move_finder.find_random_move(valid_moves)
+                gs.make_move(AI_move)
+                move_made = True
+                animate = True
+                AI_thinking = False
 
         if move_made:
             if animate:
@@ -113,6 +140,7 @@ def main():
             valid_moves = gs.get_valid_moves()
             move_made = False
             animate = False
+            move_undone = False
 
         draw_game_state(screen, gs, valid_moves, square_selected, move_log_font)
 
