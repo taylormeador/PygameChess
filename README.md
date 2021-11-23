@@ -26,3 +26,6 @@ Bug fixes, move log display
 
 -10/26/21
 en-passant bug fix, multiprocessing
+
+-11/23/21
+*Added a dialog box that prompts the user to confirm that they want to restart the game after pressing the "r" key

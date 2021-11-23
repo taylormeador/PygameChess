@@ -17,7 +17,7 @@ MAX_FPS = 15
 IMAGES = {}
 
 # TODO pre-moves, player select/config, material count display, opening book,
-#  square labels, draw rules, time control, drag and drop
+#  square labels, draw rules, time control, drag and drop, variants: 960, chess squared, three check
 
 """
 Initialize a global dictionary of images. This will only be called once in the main function
@@ -45,6 +45,7 @@ def main():
     move_log_font = p.font.SysFont("Arial", 12, False, False)
     gs = engine.GameState()
     valid_moves = gs.get_valid_moves()
+    r = Restart()
     move_made = False  # flag variable for when a move is made
     animate = False  # flag variable for turning off animation
     load_images()
@@ -60,12 +61,13 @@ def main():
     running = True
     while running:
         human_turn = (gs.white_to_move and player_one) or (not gs.white_to_move and player_two)
+
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
             # mouse handler
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not game_over:
+                if not game_over and not r.restart_requested:
                     location = p.mouse.get_pos()  # (x, y) of mouse click position
                     col = location[0] // SQ_SIZE  # get column number from location
                     row = location[1] // SQ_SIZE  # get row number from location
@@ -90,6 +92,9 @@ def main():
                                 player_clicks = [square_selected]  # avoid bug where you double click to select new piece
                         else:  # if it's not a human turn, save the move as a premove
                             premove = engine.Move(player_clicks[0], player_clicks[1], gs.board)
+                elif r.restart_requested:
+                    location = p.mouse.get_pos()  # (x, y) of mouse click position
+                    r.capture_response(location)
             # key handlers
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:  # undo move when 'z' is pressed
@@ -102,21 +107,10 @@ def main():
                         AI_thinking = False
                     move_undone = True
                 if e.key == p.K_r:  # restart the game when you press "r"
-                    # TODO add dialog box to confirm player wants to restart the game
-                    gs = engine.GameState()
-                    valid_moves = gs.get_valid_moves()
-                    square_selected = ()
-                    player_clicks = []
-                    move_made = False
-                    animate = False
-                    game_over = False
-                    if AI_thinking:
-                        move_finder_process.terminate()
-                        AI_thinking = False
-                    move_undone = True
+                    r.restart_requested = True
 
         # AI move finder logic
-        if not game_over and not human_turn and not move_undone:
+        if not game_over and not human_turn and not move_undone and not r.restart_requested:
             if not AI_thinking:
                 AI_thinking = True
                 print("Thinking...")
@@ -142,12 +136,26 @@ def main():
             animate = False
             move_undone = False
 
-        draw_game_state(screen, gs, valid_moves, square_selected, move_log_font)
+        draw_game_state(screen, gs, valid_moves, square_selected, move_log_font, r)
 
         if gs.checkmate or gs.stalemate:
             game_over = True
             text = "Stalemate" if gs.stalemate else "Black wins by checkmate" if gs.white_to_move else "White wins by checkmate"
             draw_end_game_text(screen, text)
+
+        if r.restart_confirmed:
+            r.restart_confirmed = False
+            gs = engine.GameState()
+            valid_moves = gs.get_valid_moves()
+            square_selected = ()
+            player_clicks = []
+            move_made = False
+            animate = False
+            game_over = False
+            if AI_thinking:
+                move_finder_process.terminate()
+                AI_thinking = False
+            move_undone = True
 
         clock.tick(MAX_FPS)
         p.display.flip()
@@ -158,11 +166,13 @@ Responsible for all graphics in the current game state
 """
 
 
-def draw_game_state(screen, gs, valid_moves, square_selected, move_log_font):
+def draw_game_state(screen, gs, valid_moves, square_selected, move_log_font, r):
     draw_board(screen)  # draw squares on the board
     highlight_squares(screen, gs, valid_moves, square_selected)  # highlight squares
     draw_pieces(screen, gs.board)  # draw pieces on squares
     draw_move_log(screen, gs, move_log_font)
+    if r.restart_requested:
+        r.draw_game_restart_confirmation(screen)
 
 
 """
@@ -283,6 +293,73 @@ def animate_move(move, screen, board, clock):
         screen.blit(IMAGES[move.piece_moved], p.Rect(col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
         p.display.flip()
         clock.tick(60)
+
+
+"""
+prompt user to confirm that they want to restart the game
+"""
+
+
+class Restart:
+    def __init__(self):
+        self.restart_requested = False
+        self.restart_confirmed = False
+        self.yes_button = p.Rect(0, 0, 0, 0)
+        self.no_button = p.Rect(0, 0, 0, 0)
+
+    def draw_game_restart_confirmation(self, screen):
+        # main message box
+        box_color = "black"
+        box_width = BOARD_WIDTH//2
+        box_height = BOARD_HEIGHT//4
+        box_x = BOARD_WIDTH//2 - box_width//2
+        box_y = BOARD_HEIGHT//2 - box_height//2
+        box_rect = p.Rect(box_x, box_y, box_width, box_height)
+
+        # yes button
+        yes_color = "white"
+        yes_x = box_x + box_x//4
+        yes_y = box_y + box_y//3
+        yes_width = box_width//4
+        yes_height = box_height//4
+        self.yes_button = p.Rect(yes_x, yes_y, yes_width, yes_height)
+
+        # no button
+        no_color = "white"
+        no_x = box_x*2 + box_x//4
+        no_y = box_y + box_y//3
+        no_width = box_width//4
+        no_height = box_height//4
+        self.no_button = p.Rect(no_x, no_y, no_width, no_height)
+
+        # draw box and buttons
+        p.draw.rect(screen, box_color, box_rect)
+        p.draw.rect(screen, yes_color, self.yes_button)
+        p.draw.rect(screen, no_color, self.no_button)
+
+        # confirmation text
+        font = p.font.SysFont("Helvetica", 14, True, False)
+        text_object = font.render("Are you sure you want to restart?", 1, p.Color("White"))
+        text_location = (box_x + 12, box_y + box_y//8)
+        screen.blit(text_object, text_location)
+
+        # yes text
+        font = p.font.SysFont("Helvetica", 14, True, False)
+        text_object = font.render("Yes", 1, p.Color("Black"))
+        text_location = (yes_x + yes_width//4, yes_y + yes_height//4)
+        screen.blit(text_object, text_location)
+
+        # no text
+        text_object = font.render("No", 1, p.Color("Black"))
+        text_location = (no_x + no_width//3, no_y + no_height // 4)
+        screen.blit(text_object, text_location)
+
+    def capture_response(self, location):
+        if self.yes_button.collidepoint(location):
+            self.restart_requested = False
+            self.restart_confirmed = True
+        elif self.no_button.collidepoint(location):
+            self.restart_requested = False
 
 
 """
