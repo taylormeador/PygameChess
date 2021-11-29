@@ -6,6 +6,7 @@ import pygame as p
 import engine
 import smart_move_finder
 from multiprocessing import Process, Queue
+import sys
 
 p.init()
 BOARD_WIDTH = BOARD_HEIGHT = 512
@@ -16,8 +17,115 @@ SQ_SIZE = BOARD_HEIGHT // DIMENSION
 MAX_FPS = 15
 IMAGES = {}
 
-# TODO pre-moves, player select/config, material count display, opening book,
-#  square labels, draw rules, time control, drag and drop, variants: 960, chess squared, three check
+
+# TODO pre-moves, opening book,
+#  square labels, draw rules, variants: 960, chess squared, three check, King of the Hill,
+#  keep score, option to resign or draw
+
+"""
+Configure the game
+"""
+
+
+class Button:
+    def __init__(self, button_text, button_location, button_width):
+        self.button_text = button_text
+        self.button_location = button_location
+        self.button_width = button_width
+        self.button_height = 35
+        self.button_rect = p.Rect(self.button_location[0], self.button_location[1], self.button_width, self.button_height)
+        self.selected = False
+        self.selected_color = p.Color("cyan")
+
+    def draw_button(self, screen):
+        # draw the rectangle
+        color = self.selected_color if self.selected else p.Color("white")
+        p.draw.rect(screen, color, self.button_rect)
+
+        # draw the text
+        font = p.font.SysFont("Helvetica", 20, False, False)
+        text_object = font.render(self.button_text, 1, p.Color("Black"))
+        text_location = (self.button_location[0] + self.button_width//6, self.button_location[1] + self.button_height//6)
+        screen.blit(text_object, text_location)
+
+
+start_button = Button("Start Game", (BOARD_WIDTH - 50, BOARD_HEIGHT - 50), 150)
+white_select_button = Button("White", (25, 25), 75)
+black_select_button = Button("Black", (25, 75), 75)
+time_3_0_button = Button("3+0", (200, 25), 60)
+time_3_2_button = Button("3+2", (200, 75), 60)
+time_5_0_button = Button("5+0", (200, 125), 60)
+white_button = Button("White", (375, 25), 85)
+beige_button = Button("Beige", (375, 75), 85)
+ivory_button = Button("Ivory", (375, 125), 85)
+gray_button = Button("Gray", (525, 25), 85)
+dark_gray_button = Button("Dark Gray", (525, 75), 85)
+green_button = Button("Dark Green", (525, 125), 150)
+
+buttons = [start_button, white_select_button, black_select_button, time_3_0_button, time_3_2_button, time_5_0_button, white_button, beige_button, ivory_button, gray_button, dark_gray_button, green_button]
+time_buttons = [time_3_0_button, time_3_2_button, time_5_0_button]
+piece_color_buttons = [white_select_button, black_select_button]
+light_color_buttons = [white_button, beige_button, ivory_button]
+dark_color_buttons = [gray_button, dark_gray_button, green_button]
+
+def config():
+    p.init()
+    p.display.set_caption('Pygame Chess')
+    screen = p.display.set_mode((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT))
+    clock = p.time.Clock()
+    start_button_enable = False
+    running = True
+    while running:
+        screen.fill(p.Color("black"))
+        for e in p.event.get():
+            if e.type == p.QUIT:
+                running = False
+            # mouse handler
+            elif e.type == p.MOUSEBUTTONDOWN:
+                location = p.mouse.get_pos()  # (x, y) of mouse click position
+                for button in buttons:
+                    if button.button_rect.collidepoint(location):  # press the button
+                        button.selected = not button.selected
+                        for time_button in time_buttons:  # deselect other time control buttons
+                            if button in time_buttons and button != time_button:
+                                time_button.selected = False
+                        for color_button in piece_color_buttons:  # deselect other color button
+                            if button in piece_color_buttons and button != color_button:
+                                color_button.selected = False
+                        for light_color_button in light_color_buttons:  # deselect other color button
+                            if button in light_color_buttons and button != light_color_button:
+                                light_color_button.selected = False
+                        for dark_color_button in dark_color_buttons:  # deselect other color button
+                            if button in dark_color_buttons and button != dark_color_button:
+                                dark_color_button.selected = False
+                        if not start_button_enable:  # don't allow game to start until valid choices are made
+                            start_button.selected = False
+
+        for button in buttons:  # draw buttons
+            button.draw_button(screen)
+
+        if (white_select_button.selected or black_select_button.selected) and (time_3_0_button.selected or time_3_2_button.selected or time_5_0_button.selected):  # don't let user start game without setting up
+            start_button_enable = True
+
+        player_one = True if white_select_button.selected else False
+        time_control = 300 if time_5_0_button.selected else 180
+        increment = 2 if time_3_2_button.selected else 0
+        for button in light_color_buttons:
+            if button.selected:
+                light_square_color = p.Color(button.button_text)
+        for button in dark_color_buttons:
+            if button.selected:
+                dark_square_color = p.Color(button.button_text)
+
+        if start_button.selected:
+            main(player_one, time_control, increment, light_square_color, dark_square_color)  # call the main game loop
+
+        clock.tick(MAX_FPS)
+        p.display.flip()
+
+    p.quit()  # quits pygame
+    sys.exit()
+
 
 """
 Initialize a global dictionary of images. This will only be called once in the main function
@@ -37,8 +145,9 @@ The main driver for the game. This will handle user input and updating the graph
 """
 
 
-def main():
+def main(player_one, time_control, increment, light_square_color, dark_square_color):
     p.init()
+    p.display.set_caption('Pygame Chess')
     screen = p.display.set_mode((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
@@ -53,19 +162,49 @@ def main():
     player_clicks = []  # list that keeps track of two consecutive player clicks (two tuples: [(5, 4), (6, 8)])
     game_over = False
     premove = None
-    player_one = True  # if a human is playing white, this will be true
-    player_two = False  # same as above but for black
+    player_two = not player_one  # True means human player
     AI_thinking = False
     move_finder_process = None
     move_undone = False
+    time_since_last_tick = 0
+    time_remaining = time_control
+    light_square_color = light_square_color
+    dark_square_color = dark_square_color
+    lost_on_time = False
     running = True
     while running:
-        human_turn = (gs.white_to_move and player_one) or (not gs.white_to_move and player_two)
+        if time_remaining <= 0.0:
+            time_remaining = 0
+            game_over = True
+            lost_on_time = True
 
+        human_turn = (gs.white_to_move and player_one) or (not gs.white_to_move and player_two)
+        if human_turn and not game_over:
+            time_remaining -= time_since_last_tick / 1000
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
             # mouse handler
+            elif e.type == p.MOUSEBUTTONUP:
+                if len(player_clicks) == 1:  # if the player clicked and grabbed a piece
+                    location = p.mouse.get_pos()  # (x, y) of mouse click position
+                    col = location[0] // SQ_SIZE  # get column number from location
+                    row = location[1] // SQ_SIZE  # get row number from location
+                    if square_selected != (row, col):  # if the player drags the mouse
+                        square_selected = (row, col)
+                        player_clicks.append(square_selected)
+                        if human_turn:  # if it's a human turn, play the move
+                            move = engine.Move(player_clicks[0], player_clicks[1], gs.board)
+                            for i in range(len(valid_moves)):
+                                if move == valid_moves[i]:  # execute the move only if it is valid
+                                    gs.make_move(valid_moves[i])
+                                    move_made = True
+                                    animate = True
+                                    time_remaining += increment
+                                    square_selected = ()  # reset square_selected
+                                    player_clicks = []  # reset player_clicks
+                            if not move_made:  # if the player did not make a valid move (e.g. clicked on another ally piece)
+                                player_clicks = [square_selected]  # avoid bug where you double click to select new piece
             elif e.type == p.MOUSEBUTTONDOWN:
                 if not game_over and not r.restart_requested:
                     location = p.mouse.get_pos()  # (x, y) of mouse click position
@@ -83,15 +222,16 @@ def main():
                             for i in range(len(valid_moves)):
                                 if move == valid_moves[i]:  # execute the move only if it is valid
                                     gs.make_move(valid_moves[i])
-                                    premove = None
+                                    # premove = None
                                     move_made = True
                                     animate = True
+                                    time_remaining += increment
                                     square_selected = ()  # reset square_selected
                                     player_clicks = []  # reset player_clicks
                             if not move_made:  # if the player did not make a valid move (e.g. clicked on another ally piece)
                                 player_clicks = [square_selected]  # avoid bug where you double click to select new piece
-                        else:  # if it's not a human turn, save the move as a premove
-                            premove = engine.Move(player_clicks[0], player_clicks[1], gs.board)
+                        # else:  # if it's not a human turn, save the move as a premove
+                        #    premove = engine.Move(player_clicks[0], player_clicks[1], gs.board)
                 elif r.restart_requested:
                     location = p.mouse.get_pos()  # (x, y) of mouse click position
                     r.capture_response(location)
@@ -130,21 +270,27 @@ def main():
 
         if move_made:
             if animate:
-                animate_move(gs.move_log[-1], screen, gs.board, clock)
+                animate_move(gs.move_log[-1], screen, gs.board, clock, light_square_color, dark_square_color)
             valid_moves = gs.get_valid_moves()
             move_made = False
             animate = False
             move_undone = False
 
-        draw_game_state(screen, gs, valid_moves, square_selected, move_log_font, r)
+        draw_game_state(screen, gs, valid_moves, square_selected, move_log_font, time_remaining, light_square_color, dark_square_color)
+
+        if lost_on_time:
+            text = "White wins on time" if not gs.white_to_move else "Black wins on time"
+            draw_end_game_text(screen, text)
 
         if gs.checkmate or gs.stalemate:
             game_over = True
             text = "Stalemate" if gs.stalemate else "Black wins by checkmate" if gs.white_to_move else "White wins by checkmate"
             draw_end_game_text(screen, text)
 
+        if r.restart_requested:
+            r.draw_game_restart_confirmation(screen)
+
         if r.restart_confirmed:
-            r.restart_confirmed = False
             gs = engine.GameState()
             valid_moves = gs.get_valid_moves()
             square_selected = ()
@@ -156,9 +302,15 @@ def main():
                 move_finder_process.terminate()
                 AI_thinking = False
             move_undone = True
+            lost_on_time = False
+            r.restart_confirmed = False
+            time_remaining = time_control
 
-        clock.tick(MAX_FPS)
+        time_since_last_tick = clock.tick(MAX_FPS)
         p.display.flip()
+
+    p.quit()  # quits pygame
+    sys.exit()
 
 
 """
@@ -166,13 +318,13 @@ Responsible for all graphics in the current game state
 """
 
 
-def draw_game_state(screen, gs, valid_moves, square_selected, move_log_font, r):
-    draw_board(screen)  # draw squares on the board
+def draw_game_state(screen, gs, valid_moves, square_selected, move_log_font, time_remaining, light_square_color, dark_square_color):
+    draw_board(screen, light_square_color, dark_square_color)  # draw squares on the board
     highlight_squares(screen, gs, valid_moves, square_selected)  # highlight squares
     draw_pieces(screen, gs.board)  # draw pieces on squares
     draw_move_log(screen, gs, move_log_font)
-    if r.restart_requested:
-        r.draw_game_restart_confirmation(screen)
+    draw_material_count(screen, smart_move_finder, gs)
+    draw_clock(screen, time_remaining)
 
 
 """
@@ -180,10 +332,10 @@ Draw the squares on the board
 """
 
 
-def draw_board(screen):
+def draw_board(screen, light_square_color, dark_square_color):
     global colors
     # TODO implement alternate color choices
-    colors = [p.Color("white"), p.Color("gray")]
+    colors = [light_square_color, dark_square_color]
     for row in range(DIMENSION):
         for col in range(DIMENSION):
             color = colors[((row + col) % 2)]
@@ -264,12 +416,20 @@ def draw_move_log(screen, gs, move_log_font):
         textY += text_object.get_height() + line_spacing
 
 
+def draw_material_count(screen, smart_move_finder, gs):
+    material_count = str(smart_move_finder.score_board(gs))
+    font = p.font.SysFont("Helvetica", 14, True, False)
+    text_object = font.render("Material Count: " + material_count, 1, p.Color("White"))
+    text_location = p.Rect(BOARD_WIDTH + 15, BOARD_HEIGHT - 25, 50, 50)
+    screen.blit(text_object, text_location)
+
+
 """
 animating a move
 """
 
 
-def animate_move(move, screen, board, clock):
+def animate_move(move, screen, board, clock, light_square_color, dark_square_color):
     global colors
     dr = move.end_row - move.start_row
     dc = move.end_col - move.start_col
@@ -277,7 +437,7 @@ def animate_move(move, screen, board, clock):
     frame_count = (abs(dr) + abs(dc)) * frames_per_square
     for frame in range(frame_count + 1):
         row, col = (move.start_row + dr * frame / frame_count, move.start_col + dc * frame / frame_count)
-        draw_board(screen)
+        draw_board(screen, light_square_color, dark_square_color)
         draw_pieces(screen, board)
         # erase the piece from its end square
         color = colors[(move.end_row + move.end_col) % 2]
@@ -363,6 +523,23 @@ class Restart:
 
 
 """
+draw the time clock
+"""
+
+
+def draw_clock(screen, time_remaining):
+    if time_remaining <= 0.0:
+        time_remaining = 0
+    m, s = divmod(time_remaining, 60)
+    m, s = int(m//1), round(s, 1)
+    time_remaining_str = str(m) + ":" + str(s)
+    font = p.font.SysFont("Helvetica", 14, True, False)
+    text_object = font.render(time_remaining_str, 1, p.Color("White"))
+    text_location = (BOARD_WIDTH + 15, BOARD_HEIGHT-50)
+    screen.blit(text_object, text_location)
+
+
+"""
 draws the text on the screen after the game is over
 """
 
@@ -375,4 +552,4 @@ def draw_end_game_text(screen, text):
 
 
 if __name__ == "__main__":
-    main()
+    config()

@@ -26,6 +26,13 @@ Bug fixes, move log display
 
 -10/26/21
 en-passant bug fix, multiprocessing
+this was the last video of the tutorial series so the rest of the updates will be purely my own code and ideas
 
 -11/23/21
-*Added a dialog box that prompts the user to confirm that they want to restart the game after pressing the "r" key
+Added a dialog box that prompts the user to confirm that they want to restart the game after pressing the "r" key
+
+-11/29/21
+Added material count display and fixed a bug where the restart dialog was covered by the "checkmate" text
+Added a time clock for human player
+Added a config screen that allows the user to choose a color, board colors, and the time control
+Added ability to drag/drop to make a move
